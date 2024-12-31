@@ -3,9 +3,9 @@ from numpy import sin, cos
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from scipy.interpolate import CubicHermiteSpline
-from sa2d_beta.elements import Node, Beam
-from sa2d_beta.matrices import trans_mat_for_frame
-from sa2d_beta.section import Section
+from elements import Node, Beam
+from matrices import transfer_matrix
+from section import Section
 
 
 class Frame2D:
@@ -185,7 +185,7 @@ class Frame2D:
             K_local = element.K_local
 
             # 转换矩阵
-            T_mat = trans_mat_for_frame(phi)
+            T_mat = transfer_matrix(phi)
 
             # 全局坐标系下的单元节点位移解
             u_global = U[dof_ids]

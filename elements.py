@@ -1,6 +1,6 @@
 import numpy as np
-from sa2d_beta.section import Section
-from sa2d_beta.matrices import big_mat, trans_mat_for_frame
+from section import Section
+from matrices import big_mat, transfer_matrix
 
 
 class Node:
@@ -46,7 +46,7 @@ class Beam:
         A = self.section.shape.A
         I = self.section.shape.I
         self.K_local = big_mat(E, A, I, self.L)
-        self.K_global = trans_mat_for_frame(self.Phi).T @ self.K_local @ trans_mat_for_frame(self.Phi)
+        self.K_global = transfer_matrix(self.Phi).T @ self.K_local @ transfer_matrix(self.Phi)
 
     def update_shape_params(self, **kwargs):
         self.section.update_shape_params(**kwargs)

@@ -1,5 +1,5 @@
-from sa2d_beta.systems import Frame2D
-from sa2d_beta.section import *
+from systems import Frame2D
+from section import *
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import numpy as np
@@ -29,6 +29,7 @@ s.add_element(4, 3, section_1)  # e4
 s.add_fixed_sup(1, 2, 3)
 
 # 添加力
+s.add_single_moment(5, M=-50000)
 s.add_single_force(5, Fx=50000)
 
 U = s.solve_disp()

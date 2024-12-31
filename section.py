@@ -1,4 +1,4 @@
-from sa2d_beta.shape import *
+from shape import *
 
 
 class Material:
