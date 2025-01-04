@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import minimize
 from systems import Frame2D
@@ -37,10 +36,10 @@ s.add_single_moment(5, M=5000)
 # -----------------------------------------------
 
 # --------------------优化函数--------------------
-def structure_weight(R: float):
+def structure_weight(R: np.ndarray):
     G = 0
-    for e in s.elements:
-        e.update_shape_params(R=R)
+    for i, e in enumerate(s.elements):
+        e.update_shape_params(R=R[i])
         rho = e.section.material.rho
         A = e.section.shape.A
         L = e.L
@@ -49,9 +48,9 @@ def structure_weight(R: float):
     return G
 
 
-def F(R: float):
-    for e in s.elements:
-        e.update_shape_params(R=R)
+def F(R: np.ndarray):
+    for i, e in enumerate(s.elements):
+        e.update_shape_params(R=R[i])
     max_stress = s.get_max_stress()
     return max_stress
 
@@ -59,18 +58,21 @@ def F(R: float):
 tol = 100e6
 
 
-def func(r): return structure_weight(r[0])
+def func(r): return structure_weight(r)
 
 
-def constraint(r): return tol - F(r[0])
+cons = ({'type': 'ineq', 'fun': lambda r: tol - F(r)})
 
-
-cons = ({'type': 'ineq', 'fun': lambda r: constraint(r)})
-
-r0 = np.array([0.05])
+r0 = np.array([0.01,
+               0.01,
+               0.01,
+               0.01])
 
 # 定义截面半径的边界
-bounds = [(0.01, 0.1)]
+bounds = [(0.001, 0.05),
+          (0.001, 0.05),
+          (0.001, 0.05),
+          (0.001, 0.05)]
 
 res = minimize(func, r0, method='SLSQP', constraints=cons, bounds=bounds)
 print("最小值:", res.fun)
@@ -78,4 +80,4 @@ print("最优解:", res.x)
 print("迭代终止是否成功", res.success)
 print("迭代终止原因", res.message)
 
-print(F(res.x[0]))
+print(F(res.x))

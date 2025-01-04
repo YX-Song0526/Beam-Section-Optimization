@@ -1,6 +1,6 @@
 import numpy as np
 from section import Section
-from matrices import big_mat, transfer_matrix
+from matrices import K_beam_local, transfer_matrix
 
 
 class Node:
@@ -45,7 +45,7 @@ class Beam:
         E = self.section.material.E
         A = self.section.shape.A
         I = self.section.shape.I
-        self.K_local = big_mat(E, A, I, self.L)
+        self.K_local = K_beam_local(E, A, I, self.L)
         self.K_global = transfer_matrix(self.Phi).T @ self.K_local @ transfer_matrix(self.Phi)
 
     def update_shape_params(self, **kwargs):

@@ -2,7 +2,7 @@ import numpy as np
 from numpy import cos, sin
 
 
-def big_mat(E, A, I, L):
+def K_beam_local(E, A, I, L):
     """
     二维钢架单元的局部单元刚度矩阵
 

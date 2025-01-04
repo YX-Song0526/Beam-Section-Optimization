@@ -174,30 +174,21 @@ class Frame2D:
         求解单元的节点力
         """
         U = self.solve_disp()
-
         element_nodal_force_local = []
-
         for element in self.elements:
             # 获取单元的自由度索引
             dof_ids = self.get_element_dof(element)
-
             phi = element.Phi
             K_local = element.K_local
-
             # 转换矩阵
             T_mat = transfer_matrix(phi)
-
             # 全局坐标系下的单元节点位移解
             u_global = U[dof_ids]
-
             # 局部坐标下的单元节点位移解
             u_local = T_mat @ u_global
-
             # 局部坐标系下的单元节点力
             f_local = K_local @ u_local
-
             element_nodal_force_local.append(f_local)
-
         return element_nodal_force_local
 
     def get_max_stress(self):
@@ -219,10 +210,8 @@ class Frame2D:
 
             # 拉压应力
             axial_stress = abs(Fx / A)
-
             # 弯曲应力
             bend_stress = max(abs(M1 * y_max / I), abs(M2 * y_max / I))
-
             # 最大总应力
             stress = axial_stress + bend_stress
             ele_max_stress.append(stress)
@@ -240,8 +229,8 @@ class Frame2D:
         for i, element in enumerate(self.elements):
             x_values = [element.node1.x, element.node2.x]
             y_values = [element.node1.y, element.node2.y]
-            color = 'lightblue'
-            ax.plot(x_values, y_values, color + '-', linewidth=5, label="Original" if i == 0 else "")
+            color = 'b'
+            ax.plot(x_values, y_values, color + '-', linewidth=3, label="Original" if i == 0 else "", alpha=0.6)
             mid_x = (x_values[0] + x_values[1]) / 2
             mid_y = (y_values[0] + y_values[1]) / 2
             ax.text(mid_x, mid_y, f'({i + 1})', fontsize=10)
@@ -258,8 +247,8 @@ class Frame2D:
         y_min, y_max = min(node_y), max(node_y)
 
         # 设置坐标范围，并添加10%边距
-        x_margin = (x_max - x_min) * 0.3 if x_max != x_min else 0.3
-        y_margin = (y_max - y_min) * 0.5 if y_max != y_min else 0.5
+        x_margin = (x_max - x_min) * 0.2 if x_max != x_min else 0.2
+        y_margin = (y_max - y_min) * 0.2 if y_max != y_min else 0.2
         ax.set_xlim(x_min - x_margin, x_max + x_margin)
         ax.set_ylim(y_min - y_margin, y_max + y_margin)
 
@@ -288,70 +277,63 @@ class Frame2D:
 
         def update(val):
             scale = scale_slider.val
-            for i, element in enumerate(self.elements):
+            for i, beam in enumerate(self.elements):
 
-                node1_idx, node2_idx = self.nodes.index(element.node1), self.nodes.index(element.node2)
+                node1_id, node2_id = self.nodes.index(beam.node1), self.nodes.index(beam.node2)
 
-                index1, index2 = self.node_indices[node1_idx], self.node_indices[node2_idx]  # 获取自由度索引
+                # 获取单元节点的变形量
+                x_deformed = [beam.node1.x + scale * U[3 * node1_id],
+                              beam.node2.x + scale * U[3 * node2_id]]
 
-                x_deformed = [element.node1.x + scale * U[index1],
-                              element.node2.x + scale * U[index2]]
+                y_deformed = [beam.node1.y + scale * U[3 * node1_id + 1],
+                              beam.node2.y + scale * U[3 * node2_id + 1]]
 
-                y_deformed = [element.node1.y + scale * U[index1 + 1],
-                              element.node2.y + scale * U[index2 + 1]]
+                Phi = beam.Phi
 
-                if isinstance(element, Beam):
+                if Phi == 0:
 
-                    Phi = element.Phi
+                    # 对于水平的BeamColumn单元，使用变形后的位置和转角来创建 Hermite 曲线
+                    dydx_1 = U[3 * node1_id + 2] * scale
+                    dydx_2 = U[3 * node2_id + 2] * scale
 
-                    if Phi == 0:
+                    hermite_spline = CubicHermiteSpline(
+                        [x_deformed[0], x_deformed[1]],
+                        [y_deformed[0], y_deformed[1]],
+                        [dydx_1, dydx_2]
+                    )
 
-                        # 对于水平的BeamColumn单元，使用变形后的位置和转角来创建 Hermite 曲线
-                        dx_dy1 = U[index1 + 2] * scale
-                        dx_dy2 = U[index2 + 2] * scale
+                    # 生成插值点
+                    x_spline = np.linspace(x_deformed[0], x_deformed[1], 100)
+                    y_spline = hermite_spline(x_spline)
 
-                        hermite_spline = CubicHermiteSpline(
-                            [x_deformed[0], x_deformed[1]],
-                            [y_deformed[0], y_deformed[1]],
-                            [dx_dy1, dx_dy2]
-                        )
-
-                        # 生成插值点
-                        x_spline = np.linspace(x_deformed[0], x_deformed[1], 50)
-                        y_spline = hermite_spline(x_spline)
-
-                        deformed_lines[i].set_data(x_spline, y_spline)
-
-                    else:
-
-                        length = np.sqrt((x_deformed[1] - x_deformed[0]) ** 2 +
-                                         (y_deformed[1] - y_deformed[0]) ** 2)
-                        phi = np.arctan2(y_deformed[1] - y_deformed[0],
-                                         x_deformed[1] - x_deformed[0])
-
-                        dx_dy1 = U[index1 + 2] * scale + (Phi - phi)
-                        dx_dy2 = U[index2 + 2] * scale + (Phi - phi)
-
-                        # Hermite插值在局部坐标系中进行
-                        hermite_spline = CubicHermiteSpline(
-                            [0, length],
-                            [0, 0],
-                            [dx_dy1, dx_dy2]
-                        )
-
-                        # 局部坐标插值
-                        x_old = np.linspace(0, length, 100)
-                        y_old = hermite_spline(x_old)
-
-                        # 坐标转换
-                        x_new = x_deformed[0] + cos(phi) * x_old - sin(phi) * y_old
-                        y_new = y_deformed[0] + sin(phi) * x_old + cos(phi) * y_old
-
-                        deformed_lines[i].set_data(x_new, y_new)
+                    deformed_lines[i].set_data(x_spline, y_spline)
 
                 else:
-                    # 其他单元绘制直线
-                    deformed_lines[i].set_data(x_deformed, y_deformed)
+
+                    length = np.sqrt((x_deformed[1] - x_deformed[0]) ** 2 +
+                                     (y_deformed[1] - y_deformed[0]) ** 2)
+                    phi = np.arctan2(y_deformed[1] - y_deformed[0],
+                                     x_deformed[1] - x_deformed[0])
+
+                    dydx_1 = U[3 * node1_id + 2] * scale + (Phi - phi)
+                    dydx_2 = U[3 * node2_id + 2] * scale + (Phi - phi)
+
+                    # Hermite插值在局部坐标系中进行
+                    hermite_spline = CubicHermiteSpline(
+                        [0, length],
+                        [0, 0],
+                        [dydx_1, dydx_2]
+                    )
+
+                    # 局部坐标插值
+                    x_old = np.linspace(0, length, 1000)
+                    y_old = hermite_spline(x_old)
+
+                    # 坐标转换
+                    x_new = x_deformed[0] + cos(phi) * x_old - sin(phi) * y_old
+                    y_new = y_deformed[0] + sin(phi) * x_old + cos(phi) * y_old
+
+                    deformed_lines[i].set_data(x_new, y_new)
 
             fig.canvas.draw_idle()
 
