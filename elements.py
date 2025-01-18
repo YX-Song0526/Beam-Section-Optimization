@@ -1,6 +1,6 @@
 import numpy as np
 from section import Section
-from matrices import K_beam_local, transfer_matrix
+from matrices import K_beam_local, transfer_matrix, M_beam
 
 
 class Node:
@@ -38,15 +38,18 @@ class Beam:
 
         self.K_local = None
         self.K_global = None
+        self.M_e = None
 
         self.update()
 
     def update(self):
         E = self.section.material.E
+        rho = self.section.material.rho
         A = self.section.shape.A
         I = self.section.shape.I
         self.K_local = K_beam_local(E, A, I, self.L)
         self.K_global = transfer_matrix(self.Phi).T @ self.K_local @ transfer_matrix(self.Phi)
+        self.M_e = M_beam(rho, A, self.L)
 
     def update_shape_params(self, **kwargs):
         self.section.update_shape_params(**kwargs)
